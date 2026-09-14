@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
+import LandingPage from "@/pages/LandingPage";
+import ContactPage from "@/pages/ContactPage";
 import AuthPage from "@/pages/AuthPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -17,7 +19,7 @@ import MarketingPage from "@/pages/MarketingPage";
 import AutomationPage from "@/pages/AutomationPage";
 import SubscriptionPage from "@/pages/SubscriptionPage";
 import SettingsPage from "@/pages/SettingsPage";
-import NotFound from "./pages/NotFound";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -29,8 +31,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Public Landing & Marketing Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+            {/* Authenticated Dashboard Routes */}
             <Route
               element={
                 <ProtectedRoute>
@@ -38,7 +45,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/leads" element={<LeadsPage />} />
               <Route path="/policies" element={<PoliciesPage />} />
               <Route path="/commissions" element={<CommissionsPage />} />
