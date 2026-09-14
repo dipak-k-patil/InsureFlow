@@ -14,7 +14,7 @@ describe("Interactive Landing & Contact Components", () => {
     );
 
     expect(screen.getByText(/Automate Your Agency/i)).toBeInTheDocument();
-    expect(screen.getByText(/Interactive Agency ROI Simulator/i)).toBeInTheDocument();
+    expect(screen.getByText(/Agency ROI Simulator/i)).toBeInTheDocument();
     expect(screen.getByText(/Calculate ROI/i)).toBeInTheDocument();
   });
 
