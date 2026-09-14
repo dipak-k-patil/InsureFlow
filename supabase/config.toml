@@ -1,0 +1,3 @@
+project_id = "wvoyfmkxwpjtjtsnodgf"
+[functions.reminder-scheduler]
+verify_jwt = false

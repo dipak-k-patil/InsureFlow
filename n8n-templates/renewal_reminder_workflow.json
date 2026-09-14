@@ -1,0 +1,109 @@
+{
+  "name": "Renewal Reminder Automation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule Trigger - Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fpfroenditzjpbqdbrro.supabase.co/functions/v1/webhook-renewal-reminder",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "YOUR_WEBHOOK_SECRET"
+            },
+            {
+              "name": "x-idempotency-key",
+              "value": "=renewal-{{ $json.policy_id }}-{{ $json.milestone }}-{{ $now.format('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
+            },
+            {
+              "name": "policy_id",
+              "value": "={{ $json.policy_id }}"
+            },
+            {
+              "name": "milestone",
+              "value": "={{ $json.milestone || 'd30' }}"
+            },
+            {
+              "name": "workflow_name",
+              "value": "Renewal Reminder Automation"
+            },
+            {
+              "name": "trigger",
+              "value": "Scheduled Expiry Check"
+            },
+            {
+              "name": "retry_count",
+              "value": "={{ $execution.retryCount || 0 }}"
+            },
+            {
+              "name": "idempotency_key",
+              "value": "=renewal-{{ $json.policy_id }}-{{ $json.milestone }}-{{ $now.format('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10
+            }
+          }
+        }
+      },
+      "id": "2",
+      "name": "Post to Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "Schedule Trigger - Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Post to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "mcpServerUrl": "http://localhost:5678/mcp-server/http"
+  }
+}

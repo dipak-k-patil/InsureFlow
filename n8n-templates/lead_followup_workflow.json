@@ -1,0 +1,121 @@
+{
+  "name": "Lead Follow-up Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "leadCreated",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "New Lead Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fpfroenditzjpbqdbrro.supabase.co/functions/v1/webhook-lead-followup",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "YOUR_WEBHOOK_SECRET"
+            },
+            {
+              "name": "x-idempotency-key",
+              "value": "=lead-followup-{{ $json.lead_id }}-{{ $json.action || '24h-followup' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
+            },
+            {
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}"
+            },
+            {
+              "name": "action",
+              "value": "={{ $json.action || '24h Lead Follow-up' }}"
+            },
+            {
+              "name": "notes",
+              "value": "={{ $json.notes || 'Automated n8n follow-up trigger' }}"
+            },
+            {
+              "name": "channel",
+              "value": "={{ $json.channel || 'whatsapp' }}"
+            },
+            {
+              "name": "new_status",
+              "value": "={{ $json.new_status || 'contacted' }}"
+            },
+            {
+              "name": "workflow_name",
+              "value": "Lead Follow-up Workflow"
+            },
+            {
+              "name": "trigger",
+              "value": "New Lead Creation + 24h"
+            },
+            {
+              "name": "retry_count",
+              "value": "={{ $execution.retryCount || 0 }}"
+            },
+            {
+              "name": "idempotency_key",
+              "value": "=lead-followup-{{ $json.lead_id }}-{{ $json.action || '24h-followup' }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10
+            }
+          }
+        }
+      },
+      "id": "2",
+      "name": "Post to Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "New Lead Trigger": {
+      "main": [
+        [
+          {
+            "node": "Post to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "mcpServerUrl": "http://localhost:5678/mcp-server/http"
+  }
+}
