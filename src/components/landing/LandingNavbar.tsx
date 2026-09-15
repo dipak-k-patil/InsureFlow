@@ -35,12 +35,11 @@ export const LandingNavbar: React.FC = () => {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md group-hover:scale-105 transition-transform">
-              <Shield className="w-5 h-5" />
-            </div>
-            <span className="font-extrabold text-lg sm:text-xl text-foreground tracking-tight">
-              InsurFlow<span className="text-primary">.ai</span>
-            </span>
+            <img
+              src="/insureflow-logo.png"
+              alt="Insureflow Logo"
+              className="h-9 w-auto object-contain group-hover:scale-105 transition-transform"
+            />
           </Link>
 
           {/* Desktop Nav Links */}

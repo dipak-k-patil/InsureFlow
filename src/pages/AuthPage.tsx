@@ -99,14 +99,12 @@ export default function AuthPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md glass-panel p-8"
       >
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="font-bold text-lg text-foreground">InsureFlow</h1>
-            <p className="text-xs text-muted-foreground">Insurance CRM for agents</p>
-          </div>
+        <div className="flex items-center justify-center mb-6">
+          <img
+            src="/insureflow-logo.png"
+            alt="Insureflow Logo"
+            className="h-10 w-auto object-contain"
+          />
         </div>
 
         <Tabs value={mode === "forgot" ? "signin" : mode} onValueChange={(v) => setMode(v as "signin" | "signup")}>

@@ -4,8 +4,21 @@ import { describe, it, expect } from "vitest";
 import HeroSection from "@/components/landing/HeroSection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 import ContactSection from "@/components/landing/ContactSection";
+import LandingNavbar from "@/components/landing/LandingNavbar";
 
 describe("Interactive Landing & Contact Components", () => {
+  it("renders LandingNavbar with Insureflow logo image", () => {
+    render(
+      <BrowserRouter>
+        <LandingNavbar />
+      </BrowserRouter>
+    );
+
+    const logoImg = screen.getByAltText(/Insureflow Logo/i);
+    expect(logoImg).toBeInTheDocument();
+    expect(logoImg).toHaveAttribute("src", "/insureflow-logo.png");
+  });
+
   it("renders Hero Section with headline and ROI calculator slider", () => {
     render(
       <BrowserRouter>
