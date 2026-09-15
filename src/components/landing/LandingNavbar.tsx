@@ -35,11 +35,16 @@ export const LandingNavbar: React.FC = () => {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md group-hover:scale-105 transition-transform">
-              <Shield className="w-5 h-5" />
-            </div>
-            <span className="font-extrabold text-lg sm:text-xl text-foreground tracking-tight">
-              InsurFlow<span className="text-primary">.ai</span>
+            <img
+              src="/insureflow-logo.png"
+              alt="Kadmak Logo"
+              className="h-9 w-auto object-contain group-hover:scale-105 transition-transform"
+            />
+            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-cyan-400 via-primary to-purple-400 bg-clip-text text-transparent">
+              Kadmak
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
+              kadmak.in
             </span>
           </Link>
 

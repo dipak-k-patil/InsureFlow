@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import Avatar3D from "@/components/landing/Avatar3D";
+import { ThreeDCharacter } from "@/components/ThreeDCharacter";
 
 interface HeroSectionProps {
   onOpenChat?: () => void;
@@ -44,6 +45,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground leading-[1.15]">
               Automate Your Agency With <br />
               <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-cyan-400 via-primary to-purple-500 bg-clip-text text-transparent">
                 Kadmak 3D AI Assistant
               </span>
             </h1>
@@ -102,6 +104,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
           <motion.div
             id="demo-calculator"
             className="lg:col-span-5 space-y-6"
+          {/* Right Column: 3D Character & Interactive ROI Preview Widget */}
+          <motion.div
+            id="demo-calculator"
+            className="lg:col-span-5 flex flex-col gap-6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
@@ -114,6 +120,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
             {/* Interactive ROI Simulator Card */}
             <Card className="border-cyan-500/30 bg-card/80 backdrop-blur-xl shadow-2xl overflow-hidden relative">
               <div className="bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-pink-500/20 p-4 border-b border-border/50 flex items-center justify-between">
+            {/* 3D Character Hero Highlight */}
+            <div className="flex justify-center my-2">
+              <ThreeDCharacter size="md" />
+            </div>
+
+            <Card className="border-border/60 bg-card/80 backdrop-blur-lg shadow-2xl overflow-hidden relative">
+              <div className="bg-gradient-to-r from-primary/10 to-indigo-500/10 p-4 border-b border-border/50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-400" />
                   <div className="w-3 h-3 rounded-full bg-yellow-400" />
