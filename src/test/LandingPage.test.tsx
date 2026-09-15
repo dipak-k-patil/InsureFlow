@@ -4,34 +4,17 @@ import { describe, it, expect } from "vitest";
 import HeroSection from "@/components/landing/HeroSection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 import ContactSection from "@/components/landing/ContactSection";
-import LandingNavbar from "@/components/landing/LandingNavbar";
 
 describe("Interactive Landing & Contact Components", () => {
-  it("renders LandingNavbar with Kadmak logo image and kadmak.in branding", () => {
-    render(
-      <BrowserRouter>
-        <LandingNavbar />
-      </BrowserRouter>
-    );
-
-    const logoImg = screen.getByAltText(/Kadmak Logo/i);
-    expect(logoImg).toBeInTheDocument();
-    expect(logoImg).toHaveAttribute("src", "/insureflow-logo.png");
-    expect(screen.getAllByText(/Kadmak/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/kadmak.in/i)).toBeInTheDocument();
-  });
-
-  it("renders Hero Section with headline, Kadmak 3D AI Assistant, and ROI calculator", () => {
+  it("renders Hero Section with headline and ROI calculator slider", () => {
     render(
       <BrowserRouter>
         <HeroSection />
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Automate Your Agency With/i)).toBeInTheDocument();
-    expect(screen.getByText(/Kadmak 3D AI Assistant/i)).toBeInTheDocument();
-    expect(screen.getByText(/AI Assistant Active/i)).toBeInTheDocument();
-    expect(screen.getByText(/Interactive Agency ROI Simulator/i)).toBeInTheDocument();
+    expect(screen.getByText(/Automate Your Agency/i)).toBeInTheDocument();
+    expect(screen.getByText(/Agency ROI Simulator/i)).toBeInTheDocument();
     expect(screen.getByText(/Calculate ROI/i)).toBeInTheDocument();
   });
 

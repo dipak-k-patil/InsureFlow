@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useReminderSettings, useSaveReminderSettings, DEFAULT_CHANNELS, DEFAULT_MILESTONES, type Channel, type Milestone } from "@/hooks/useReminders";
 import { WebhookStatusLogs } from "@/components/WebhookStatusLogs";
-
+import { WhatsAppBannerGenerator } from "@/components/WhatsAppBannerGenerator";
 
 const rules = [
   { name: "30-Day Renewal Reminder", trigger: "30 days before expiry", channels: ["WhatsApp", "Email"], status: "Active", lastRun: "2 hrs ago" },
@@ -63,13 +63,12 @@ export default function AutomationPage() {
     saveSettings.mutate({ milestones, channels: chans });
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Automation</h1>
-          <p className="text-muted-foreground mt-1">Configure automated workflows and reminders</p>
+          <h1 className="text-2xl font-bold text-foreground">Automation & Workflows</h1>
+          <p className="text-muted-foreground mt-1">Configure automated n8n workflows and WhatsApp reminder templates</p>
         </div>
         <Button className="gap-2">
           <Zap className="w-4 h-4" /> New Rule
@@ -78,6 +77,9 @@ export default function AutomationPage() {
 
       {/* Webhook Execution Status & Retry Logs */}
       <WebhookStatusLogs />
+
+      {/* Interactive WhatsApp Prompt Banner & Branding Generator */}
+      <WhatsAppBannerGenerator />
 
       {/* Renewal Reminder Schedule */}
       <motion.div

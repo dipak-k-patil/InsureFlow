@@ -83,8 +83,8 @@ export const ContactSection: React.FC = () => {
                 <div>
                   <h4 className="font-semibold text-foreground text-base">Call or WhatsApp</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">Mon - Fri from 9am to 6pm IST</p>
-                  <a href="tel:+919359870012" className="text-sm font-medium text-foreground hover:text-primary mt-2 inline-block">
-                    +919359870012
+                  <a href="tel:+18005550199" className="text-sm font-medium text-foreground hover:text-primary mt-2 inline-block">
+                    +1 (800) 555-0199
                   </a>
                 </div>
               </CardContent>
@@ -97,9 +97,9 @@ export const ContactSection: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="font-semibold text-foreground text-base">Headquarters</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">Kharadi Pune</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Financial Tech Tower, Suite 400</p>
                   <p className="text-sm font-medium text-foreground mt-2">
-                    Pune Maharashtra India - 411014
+                    San Francisco, CA 94105
                   </p>
                 </div>
               </CardContent>
@@ -177,7 +177,7 @@ export const ContactSection: React.FC = () => {
                         <label className="text-xs font-semibold text-foreground">Phone Number</label>
                         <Input
                           name="phone"
-                          placeholder="+919359870012"
+                          placeholder="+1 (555) 000-0000"
                           value={formData.phone}
                           onChange={handleChange}
                         />
