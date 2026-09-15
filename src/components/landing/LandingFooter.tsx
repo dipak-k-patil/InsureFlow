@@ -25,12 +25,18 @@ export const LandingFooter: React.FC = () => {
             <Link to="/" className="flex items-center gap-2.5">
               <img
                 src="/insureflow-logo.png"
-                alt="Insureflow Logo"
+                alt="Kadmak Logo"
                 className="h-8 w-auto object-contain"
               />
+              <span className="font-extrabold text-xl tracking-tight text-foreground">
+                Kadmak
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
+                kadmak.in
+              </span>
             </Link>
             <p className="text-sm leading-relaxed max-w-sm">
-              The all-in-one interactive operating system for modern insurance advisors, agencies, and brokerages.
+              Kadmak (kadmak.in) - The AI-powered interactive operating system and AI Assistant platform for modern insurance advisors, agencies, and brokerages.
             </p>
 
             {/* Newsletter Subscription */}
@@ -89,7 +95,7 @@ export const LandingFooter: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs gap-4">
-          <p>© {new Date().getFullYear()} InsureFlow Inc. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Kadmak (kadmak.in). All rights reserved.</p>
           <div className="flex items-center gap-1 text-muted-foreground">
             <span>Built for insurance professionals with</span>
             <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" />
