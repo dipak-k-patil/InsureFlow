@@ -38,13 +38,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
           >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-pink-500/20 border border-cyan-500/30 text-xs sm:text-sm font-semibold text-cyan-300 shadow-sm">
               <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" />
-              <span>Next-Gen Colorful AI Insurance Operating Platform</span>
+              <span>Kadmak (kadmak.in) • Next-Gen AI Insurance Platform</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground leading-[1.15]">
-              Automate Your Agency, <br />
+              Automate Your Agency With <br />
               <span className="bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500 bg-clip-text text-transparent">
-                Supercharge Your Revenue
+                Kadmak 3D AI Assistant
               </span>
             </h1>
 
