@@ -37,9 +37,15 @@ export const LandingNavbar: React.FC = () => {
           <Link to="/" className="flex items-center gap-2.5 group">
             <img
               src="/insureflow-logo.png"
-              alt="Insureflow Logo"
+              alt="Kadmak Logo"
               className="h-9 w-auto object-contain group-hover:scale-105 transition-transform"
             />
+            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-cyan-400 via-primary to-purple-400 bg-clip-text text-transparent">
+              Kadmak
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
+              kadmak.in
+            </span>
           </Link>
 
           {/* Desktop Nav Links */}

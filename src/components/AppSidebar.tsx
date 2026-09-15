@@ -62,12 +62,25 @@ export function AppSidebar({ mobile = false, onNavigate }: Props) {
         mobile ? "w-64" : "sticky top-0"
       )}
     >
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border shrink-0 overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-sidebar-border shrink-0 overflow-hidden">
         <img
           src="/insureflow-logo.png"
-          alt="Insureflow Logo"
+          alt="Kadmak Logo"
           className="h-8 w-auto object-contain shrink-0"
         />
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col overflow-hidden"
+            >
+              <span className="font-bold text-base leading-none text-sidebar-foreground">Kadmak</span>
+              <span className="text-[10px] text-primary font-medium tracking-tight">kadmak.in • AI Platform</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6">

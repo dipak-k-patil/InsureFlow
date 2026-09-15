@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ThreeDCharacter } from "@/components/ThreeDCharacter";
 
 const emailSchema = z.string().trim().email("Enter a valid email").max(255);
 const pwSchema = z.string().min(8, "At least 8 characters").max(72);
@@ -93,19 +94,60 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md glass-panel p-8"
-      >
-        <div className="flex items-center justify-center mb-6">
-          <img
-            src="/insureflow-logo.png"
-            alt="Insureflow Logo"
-            className="h-10 w-auto object-contain"
-          />
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 lg:p-8">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+
+        {/* Left Side: 3D Character & Brand Highlights */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="hidden lg:flex flex-col items-center justify-center p-8 glass-panel rounded-3xl relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-purple-500/10 border border-primary/20 text-center"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <img src="/insureflow-logo.png" alt="Kadmak Logo" className="h-10 w-auto object-contain" />
+            <span className="font-black text-2xl bg-gradient-to-r from-cyan-400 via-primary to-purple-400 bg-clip-text text-transparent">
+              Kadmak
+            </span>
+          </div>
+
+          <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-6">
+            kadmak.in • AI Assistant Platform
+          </p>
+
+          <ThreeDCharacter size="lg" />
+
+          <div className="mt-8 space-y-2 max-w-sm">
+            <h3 className="text-xl font-bold text-foreground">Meet Your AI Insurance Assistant</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Automate lead management, policy renewals, commission tracking, and client outreach effortlessly with Kadmak.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Right Side: Auth Form */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md mx-auto glass-panel p-8 rounded-3xl shadow-xl"
+        >
+          <div className="flex flex-col items-center justify-center mb-6 text-center">
+            <div className="flex items-center gap-2 mb-2">
+              <img
+                src="/insureflow-logo.png"
+                alt="Kadmak Logo"
+                className="h-9 w-auto object-contain"
+              />
+              <span className="font-extrabold text-2xl tracking-tight text-foreground">Kadmak</span>
+            </div>
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              kadmak.in • AI Powered
+            </span>
+          </div>
+
+          {/* Mobile 3D Character Avatar */}
+          <div className="lg:hidden flex justify-center my-4 scale-75 -my-6">
+            <ThreeDCharacter size="sm" showBadges={false} />
+          </div>
 
         <Tabs value={mode === "forgot" ? "signin" : mode} onValueChange={(v) => setMode(v as "signin" | "signup")}>
           <TabsList className="grid grid-cols-2 w-full mb-6">
@@ -163,7 +205,8 @@ export default function AuthPage() {
             </form>
           </TabsContent>
         </Tabs>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
