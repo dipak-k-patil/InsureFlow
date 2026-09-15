@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, Menu, X, ArrowRight, User } from "lucide-react";
+import { Menu, X, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import Logo from "@/components/Logo";
 
 export const LandingNavbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
@@ -33,15 +34,8 @@ export const LandingNavbar: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
 
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md group-hover:scale-105 transition-transform">
-              <Shield className="w-5 h-5" />
-            </div>
-            <span className="font-extrabold text-lg sm:text-xl text-foreground tracking-tight">
-              InsurFlow<span className="text-primary">.ai</span>
-            </span>
-          </Link>
+          {/* Logo with InsurFlow powered by Kadmak.in */}
+          <Logo size="md" />
 
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
@@ -54,7 +48,7 @@ export const LandingNavbar: React.FC = () => {
           {/* Action Buttons */}
           <div className="hidden md:flex items-center gap-4">
             {user ? (
-              <Button onClick={() => navigate("/dashboard")} className="gap-2">
+              <Button onClick={() => navigate("/dashboard")} className="gap-2 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:opacity-95 text-white font-semibold">
                 <User className="w-4 h-4" />
                 Go to Dashboard
               </Button>
@@ -63,7 +57,7 @@ export const LandingNavbar: React.FC = () => {
                 <Button variant="ghost" size="sm" asChild>
                   <Link to="/auth">Log In</Link>
                 </Button>
-                <Button size="sm" className="shadow-sm" asChild>
+                <Button size="sm" className="shadow-md bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:opacity-95 text-white font-bold" asChild>
                   <Link to="/auth">
                     Get Started
                     <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -90,21 +84,21 @@ export const LandingNavbar: React.FC = () => {
               <a
                 href="/#features"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-foreground hover:text-primary transition-colors py-1"
+                className="text-foreground hover:text-cyan-400 transition-colors py-1"
               >
                 Features
               </a>
               <a
                 href="/#solutions"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-foreground hover:text-primary transition-colors py-1"
+                className="text-foreground hover:text-cyan-400 transition-colors py-1"
               >
                 Solutions
               </a>
               <Link
                 to="/contact"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-foreground hover:text-primary transition-colors py-1"
+                className="text-foreground hover:text-cyan-400 transition-colors py-1"
               >
                 Contact Us
               </Link>
@@ -112,7 +106,7 @@ export const LandingNavbar: React.FC = () => {
 
             <div className="pt-4 border-t border-border/60 flex flex-col gap-3">
               {user ? (
-                <Button onClick={() => { setMobileMenuOpen(false); navigate("/dashboard"); }} className="w-full">
+                <Button onClick={() => { setMobileMenuOpen(false); navigate("/dashboard"); }} className="w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 text-white">
                   Go to Dashboard
                 </Button>
               ) : (
@@ -120,7 +114,7 @@ export const LandingNavbar: React.FC = () => {
                   <Button variant="outline" className="w-full" asChild>
                     <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>Log In</Link>
                   </Button>
-                  <Button className="w-full" asChild>
+                  <Button className="w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 text-white font-bold" asChild>
                     <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>Get Started Free</Link>
                   </Button>
                 </>

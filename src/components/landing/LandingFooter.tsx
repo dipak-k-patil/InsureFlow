@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Shield, Send, Heart } from "lucide-react";
+import { Send, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import Logo from "@/components/Logo";
 
 export const LandingFooter: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -22,15 +23,8 @@ export const LandingFooter: React.FC = () => {
 
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-                <Shield className="w-4 h-4" />
-              </div>
-              <span className="font-bold text-xl text-foreground tracking-tight">
-                InsurFlow<span className="text-primary">.ai</span>
-              </span>
-            </Link>
-            <p className="text-sm leading-relaxed max-w-sm">
+            <Logo size="md" />
+            <p className="text-sm leading-relaxed max-w-sm pt-2">
               The all-in-one interactive operating system for modern insurance advisors, agencies, and brokerages.
             </p>
 
@@ -46,7 +40,7 @@ export const LandingFooter: React.FC = () => {
                   className="bg-background text-sm"
                   required
                 />
-                <Button type="submit" size="sm" className="shrink-0">
+                <Button type="submit" size="sm" className="shrink-0 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 text-white">
                   <Send className="w-4 h-4" />
                 </Button>
               </form>
@@ -90,10 +84,10 @@ export const LandingFooter: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs gap-4">
-          <p>© {new Date().getFullYear()} InsurFlow Inc. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} InsurFlow Inc. powered by Kadmak.in. All rights reserved.</p>
           <div className="flex items-center gap-1 text-muted-foreground">
             <span>Built for insurance professionals with</span>
-            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" />
+            <Heart className="w-3.5 h-3.5 text-pink-500 fill-pink-500" />
           </div>
         </div>
       </div>
