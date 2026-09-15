@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Topbar } from "@/components/Topbar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import LiveChatBot from "@/components/LiveChatBot";
 
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -25,6 +26,8 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      <LiveChatBot />
     </div>
   );
 }
