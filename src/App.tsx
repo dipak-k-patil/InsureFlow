@@ -31,9 +31,11 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Public Landing & Marketing Routes */}
+            {/* Public Landing, Marketing, & Automation Routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/marketing-tools" element={<MarketingPage />} />
+            <Route path="/automation-tools" element={<AutomationPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
 

@@ -1,0 +1,87 @@
+{
+  "name": "WhatsApp Prompt Branding Banner & Reminder Automation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-branding-banner",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook Trigger - Client Prompt",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const prompt = $json.body.prompt || 'Policy Renewal Reminder';\nconst agencyName = $json.body.agencyName || 'InsurFlow Agency';\nconst phone = $json.body.advisorPhone || '+18005550199';\n\nreturn [{\n  json: {\n    prompt,\n    agencyName,\n    phone,\n    generatedMessage: `Hi! Greetings from ${agencyName}. ${prompt}. For assistance call ${phone}.`,\n    bannerTheme: 'cyan-indigo-pink'\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Generate Branding Copy & Banner Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.whatsapp.com/v1/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "messaging_product",
+              "value": "whatsapp"
+            },
+            {
+              "name": "to",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "type",
+              "value": "template"
+            },
+            {
+              "name": "template",
+              "value": "={{ $json.generatedMessage }}"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Send WhatsApp Template Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger - Client Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Branding Copy & Banner Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Branding Copy & Banner Payload": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Template Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
