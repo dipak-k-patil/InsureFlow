@@ -1,8 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
+const ALLOWED_ORIGIN = Deno.env.get("APP_ORIGIN") || "*";
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 type Milestone = "d60" | "d30" | "d15" | "d7" | "d5" | "daily";
@@ -23,10 +25,38 @@ function daysUntil(dateISO: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  // Cron/scheduler authorization check
+  const cronSecret = req.headers.get("x-cron-secret");
+  const expectedCronSecret = Deno.env.get("CRON_SECRET");
+  const authHeader = req.headers.get("authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  let isAuthorized = false;
+  if (expectedCronSecret && cronSecret === expectedCronSecret) {
+    isAuthorized = true;
+  } else if (authHeader) {
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (serviceRoleKey && token === serviceRoleKey) {
+      isAuthorized = true;
+    }
+  }
+
+  if (!isAuthorized) {
+    return new Response(JSON.stringify({ success: false, error: "Unauthorized request" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!supabaseUrl || !serviceRoleKey) {
+    return new Response(JSON.stringify({ success: false, error: "Server configuration error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
     const { data: policies, error } = await supabase
@@ -101,12 +131,11 @@ Deno.serve(async (req) => {
       created++;
     }
 
-    return new Response(JSON.stringify({ created }), {
+    return new Response(JSON.stringify({ success: true, created }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("reminder-scheduler error", e);
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    return new Response(JSON.stringify({ success: false, error: "Internal processing error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

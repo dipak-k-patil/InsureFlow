@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
+const ALLOWED_ORIGIN = (typeof Deno !== "undefined" ? Deno.env.get("APP_ORIGIN") : undefined) || "*";
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-idempotency-key",
 };
 
@@ -13,6 +15,13 @@ interface RenewalPayload {
   workflow_name?: string;
   retry_count?: number;
   idempotency_key?: string;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUUID(id?: string | null): boolean {
+  if (!id || typeof id !== "string") return false;
+  return UUID_REGEX.test(id);
 }
 
 export function handleRenewalReminderRequest(
@@ -33,30 +42,39 @@ export function handleRenewalReminderRequest(
 
   const authHeader = headers["authorization"];
   const webhookSecret = headers["x-webhook-secret"];
-  const expectedSecret = env.WEBHOOK_SECRET || "default_webhook_secret";
+  const expectedSecret = env.WEBHOOK_SECRET;
 
   let authenticatedUserId: string | null = null;
 
-  if (webhookSecret && webhookSecret === expectedSecret) {
-    authenticatedUserId = reqBody.user_id || null;
+  // Server-to-server webhook authentication
+  if (expectedSecret && webhookSecret === expectedSecret) {
+    if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+      authenticatedUserId = reqBody.user_id;
+    }
   } else if (authHeader) {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (token === expectedSecret || token === (env.SUPABASE_SERVICE_ROLE_KEY || "service_role_key")) {
-      authenticatedUserId = reqBody.user_id || null;
-    } else if (token.length > 10) {
-      authenticatedUserId = reqBody.user_id || "auth_user_id";
+    if (expectedSecret && token === expectedSecret) {
+      if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+        authenticatedUserId = reqBody.user_id;
+      }
+    } else if (env.SUPABASE_SERVICE_ROLE_KEY && token === env.SUPABASE_SERVICE_ROLE_KEY) {
+      if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+        authenticatedUserId = reqBody.user_id;
+      }
+    } else if (token.length > 20) {
+      if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+        authenticatedUserId = reqBody.user_id;
+      } else {
+        authenticatedUserId = "auth_user_id";
+      }
     }
-  }
-
-  if (!authenticatedUserId && reqBody.user_id) {
-    authenticatedUserId = reqBody.user_id;
   }
 
   const logs = mockDb?.webhook_logs || [];
   const reminderLogs = mockDb?.reminder_log || [];
 
   const recordLog = (statusCode: number, outcome: string, responsePayload: Record<string, unknown>, userIdForLog?: string | null) => {
-    const uid = userIdForLog || authenticatedUserId || reqBody.user_id || "00000000-0000-0000-0000-000000000000";
+    const uid = userIdForLog || authenticatedUserId || "00000000-0000-0000-0000-000000000000";
     const logEntry = {
       id: `log-${Date.now()}-${Math.random()}`,
       user_id: uid,
@@ -76,20 +94,21 @@ export function handleRenewalReminderRequest(
   };
 
   if (!authenticatedUserId) {
-    const resp = { success: false, error: "Unauthorized: Invalid or missing authorization headers" };
+    const resp = { success: false, error: "Unauthorized request" };
     recordLog(401, "unauthorized", resp);
     return { status: 401, body: resp };
   }
 
-  const userId = reqBody.user_id || authenticatedUserId;
+  const userId = authenticatedUserId;
   const policyId = reqBody.policy_id;
-  const milestone = reqBody.milestone || "d30";
 
-  if (!policyId) {
-    const resp = { success: false, error: "Missing required payload field: policy_id" };
+  if (!policyId || !isValidUUID(policyId)) {
+    const resp = { success: false, error: "Invalid or missing policy_id parameter" };
     recordLog(400, "bad_request", resp, userId);
     return { status: 400, body: resp };
   }
+
+  const milestone = reqBody.milestone || "d30";
 
   // Idempotency check
   if (idempotencyKey) {
@@ -109,7 +128,7 @@ export function handleRenewalReminderRequest(
 
   const policy = (mockDb?.policies || []).find((p) => p.id === policyId);
   if (!policy) {
-    const resp = { success: false, error: `Policy not found: ${policyId}` };
+    const resp = { success: false, error: "Policy not found" };
     recordLog(404, "not_found", resp, userId);
     return { status: 404, body: resp };
   }
@@ -141,10 +160,17 @@ if (typeof Deno !== "undefined" && Deno.serve) {
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(JSON.stringify({ success: false, error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     let reqBody: RenewalPayload = {};
     try {
@@ -165,16 +191,24 @@ if (typeof Deno !== "undefined" && Deno.serve) {
 
     const authHeader = req.headers.get("authorization");
     const webhookSecret = req.headers.get("x-webhook-secret");
-    const expectedSecret = Deno.env.get("WEBHOOK_SECRET") || "default_webhook_secret";
+    const expectedSecret = Deno.env.get("WEBHOOK_SECRET");
 
     let authenticatedUserId: string | null = null;
 
-    if (webhookSecret && webhookSecret === expectedSecret) {
-      authenticatedUserId = reqBody.user_id || null;
+    if (expectedSecret && webhookSecret === expectedSecret) {
+      if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+        authenticatedUserId = reqBody.user_id;
+      }
     } else if (authHeader) {
       const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      if (token === expectedSecret || token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
-        authenticatedUserId = reqBody.user_id || null;
+      if (expectedSecret && token === expectedSecret) {
+        if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+          authenticatedUserId = reqBody.user_id;
+        }
+      } else if (serviceRoleKey && token === serviceRoleKey) {
+        if (reqBody.user_id && isValidUUID(reqBody.user_id)) {
+          authenticatedUserId = reqBody.user_id;
+        }
       } else {
         const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
         if (user && !authErr) {
@@ -183,12 +217,8 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       }
     }
 
-    if (!authenticatedUserId && reqBody.user_id) {
-      authenticatedUserId = reqBody.user_id;
-    }
-
     const recordLog = async (statusCode: number, outcome: string, responsePayload: Record<string, unknown>, userIdForLog?: string | null) => {
-      const uid = userIdForLog || authenticatedUserId || reqBody.user_id || "00000000-0000-0000-0000-000000000000";
+      const uid = userIdForLog || authenticatedUserId || "00000000-0000-0000-0000-000000000000";
       await supabase.from("webhook_logs").insert({
         user_id: uid,
         event_type: "renewal_reminder",
@@ -204,7 +234,7 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     };
 
     if (!authenticatedUserId) {
-      const resp = { success: false, error: "Unauthorized: Invalid or missing authorization headers" };
+      const resp = { success: false, error: "Unauthorized request" };
       await recordLog(401, "unauthorized", resp);
       return new Response(JSON.stringify(resp), {
         status: 401,
@@ -212,18 +242,19 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       });
     }
 
-    const userId = reqBody.user_id || authenticatedUserId;
+    const userId = authenticatedUserId;
     const policyId = reqBody.policy_id;
-    const milestone = reqBody.milestone || "d30";
 
-    if (!policyId) {
-      const resp = { success: false, error: "Missing required payload field: policy_id" };
+    if (!policyId || !isValidUUID(policyId)) {
+      const resp = { success: false, error: "Invalid or missing policy_id parameter" };
       await recordLog(400, "bad_request", resp, userId);
       return new Response(JSON.stringify(resp), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const milestone = reqBody.milestone || "d30";
 
     if (idempotencyKey) {
       const { data: existingLogs } = await supabase
@@ -251,10 +282,11 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       .from("policies")
       .select("*")
       .eq("id", policyId)
+      .eq("user_id", userId)
       .single();
 
     if (policyErr || !policy) {
-      const resp = { success: false, error: `Policy not found: ${policyId}` };
+      const resp = { success: false, error: "Policy not found" };
       await recordLog(404, "not_found", resp, userId);
       return new Response(JSON.stringify(resp), {
         status: 404,
@@ -304,7 +336,7 @@ if (typeof Deno !== "undefined" && Deno.serve) {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const resp = { success: false, error: remErr.message };
+      const resp = { success: false, error: "Failed to record reminder log" };
       await recordLog(500, "error", resp, userId);
       return new Response(JSON.stringify(resp), {
         status: 500,
