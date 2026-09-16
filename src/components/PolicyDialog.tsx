@@ -66,7 +66,7 @@ export function PolicyDialog({ open, onOpenChange, policy }: Props) {
         commission_rate: form.commission_rate ? Number(form.commission_rate) : null,
         start_date: form.start_date || null,
         end_date: form.end_date,
-        status: form.status,
+        status: form.status.toLowerCase() === "active" ? "active" : form.status,
         pdf_url,
       });
       toast.success(policy ? "Policy updated" : "Policy added");

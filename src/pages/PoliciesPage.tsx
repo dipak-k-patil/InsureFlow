@@ -13,7 +13,7 @@ import { usePolicies, useDeletePolicy, getPolicyPdfUrl, type Policy } from "@/ho
 import { daysUntil } from "@/lib/renewals";
 
 function derivedStatus(p: Policy) {
-  if (p.status !== "Active") return p.status;
+  if (p.status?.toLowerCase() !== "active") return p.status;
   const d = daysUntil(p.end_date);
   if (d < 0) return "Expired";
   if (d <= 30) return "Expiring Soon";
