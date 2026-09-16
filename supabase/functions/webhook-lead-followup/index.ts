@@ -49,26 +49,32 @@ export function handleLeadFollowupRequest(
   let authenticatedUserId: string | null = null;
   let isServerWebhook = false;
 
-  // 1. Server-to-server webhook authentication
-  if (expectedSecret && webhookSecret === expectedSecret) {
+  // Check server secret presence if secret auth header provided
+  if (webhookSecret || (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes("."))) {
+    if (!expectedSecret) {
+      const resp = { success: false, error: "Webhook authentication is not configured" };
+      return { status: 503, body: resp, headers: corsHeaders };
+    }
+  }
+
+  // MODE B — Server-to-server authentication
+  if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
     isServerWebhook = true;
   } else if (authHeader) {
+    // MODE A — User JWT authentication simulation for test runner
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (expectedSecret && token === expectedSecret) {
-      isServerWebhook = true;
-    } else if (token.length > 10 && token !== "service_role_key") {
-      // Logged-in user JWT authentication simulation for unit tests
+    if (token.length > 10 && token !== "service_role_key") {
       authenticatedUserId = "auth_user_id";
     }
   }
 
-  // 2. Reject unauthenticated requests
+  // Reject unauthenticated requests
   if (!isServerWebhook && !authenticatedUserId) {
     const resp = { success: false, error: "Unauthorized request" };
     return { status: 401, body: resp, headers: corsHeaders };
   }
 
-  // 3. Strict Input Validation
+  // Strict Input Validation
   const leadId = reqBody.lead_id;
   if (!isValidId(leadId)) {
     const resp = { success: false, error: "Invalid or missing lead_id" };
@@ -78,12 +84,24 @@ export function handleLeadFollowupRequest(
   const logs = mockDb?.webhook_logs || [];
   const followupLogs = mockDb?.lead_followup_log || [];
 
-  // 4. Record log helper
-  const recordLog = (statusCode: number, outcome: string, responsePayload: Record<string, unknown>, userIdForLog?: string | null) => {
-    const uid = userIdForLog || authenticatedUserId || "00000000-0000-0000-0000-000000000000";
+  const lead = (mockDb?.leads || []).find((l) => l.id === leadId);
+  if (!lead) {
+    const resp = { success: false, error: "Lead not found" };
+    return { status: 404, body: resp, headers: corsHeaders };
+  }
+
+  // Ownership verification for user requests
+  if (authenticatedUserId && authenticatedUserId !== "auth_user_id" && lead.user_id !== authenticatedUserId) {
+    const resp = { success: false, error: "Forbidden: Access denied to requested lead" };
+    return { status: 403, body: resp, headers: corsHeaders };
+  }
+
+  const effectiveUserId = lead.user_id;
+
+  const recordLog = (statusCode: number, outcome: string, responsePayload: Record<string, unknown>) => {
     const logEntry = {
       id: `log-${Date.now()}-${Math.random()}`,
-      user_id: uid,
+      user_id: effectiveUserId,
       event_type: "lead_followup",
       workflow_name: workflowName,
       trigger: trigger,
@@ -99,7 +117,7 @@ export function handleLeadFollowupRequest(
     return logEntry;
   };
 
-  // 5. Idempotency Check
+  // Idempotency check
   if (idempotencyKey) {
     const existing = logs.find(
       (l) => l.idempotency_key === idempotencyKey && l.outcome === "success"
@@ -110,26 +128,10 @@ export function handleLeadFollowupRequest(
         duplicate: true,
         message: "Duplicate request detected and ignored. Previously processed.",
       };
-      recordLog(200, "duplicate", resp, existing.user_id);
+      recordLog(200, "duplicate", resp);
       return { status: 200, body: resp, headers: corsHeaders };
     }
   }
-
-  // 6. Database record verification and ownership check
-  const lead = (mockDb?.leads || []).find((l) => l.id === leadId);
-  if (!lead) {
-    const resp = { success: false, error: "Lead not found" };
-    recordLog(404, "not_found", resp);
-    return { status: 404, body: resp, headers: corsHeaders };
-  }
-
-  if (authenticatedUserId && lead.user_id !== authenticatedUserId && authenticatedUserId !== "auth_user_id") {
-    const resp = { success: false, error: "Forbidden: Access denied to requested lead" };
-    recordLog(403, "forbidden", resp, authenticatedUserId);
-    return { status: 403, body: resp, headers: corsHeaders };
-  }
-
-  const effectiveUserId = lead.user_id;
 
   const action = String(reqBody.action || "24h Follow-up Sent").slice(0, 200);
   const channel = String(reqBody.channel || "whatsapp").slice(0, 50);
@@ -156,7 +158,7 @@ export function handleLeadFollowupRequest(
     message: "Lead follow-up logged successfully",
     followup_id: followupEntry.id,
   };
-  recordLog(200, "success", successResp, effectiveUserId);
+  recordLog(200, "success", successResp);
 
   return { status: 200, body: successResp, headers: corsHeaders };
 }
@@ -205,26 +207,69 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     let authenticatedUserId: string | null = null;
     let isServerWebhook = false;
 
-    // 1. Authenticate server-to-server webhook OR logged-in user JWT
-    if (expectedSecret && webhookSecret === expectedSecret) {
-      isServerWebhook = true;
-    } else if (authHeader) {
-      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      if (expectedSecret && token === expectedSecret) {
-        isServerWebhook = true;
-      } else {
-        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-        if (user && !authErr) {
-          authenticatedUserId = user.id;
-        }
+    // Check if server authentication is configured when secret header is supplied
+    if (webhookSecret || (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes("."))) {
+      if (!expectedSecret) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Webhook authentication is not configured" }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
     }
 
-    const recordLog = async (statusCode: number, outcome: string, responsePayload: Record<string, unknown>, userIdForLog?: string | null) => {
-      const uid = userIdForLog || authenticatedUserId || "00000000-0000-0000-0000-000000000000";
+    // MODE B — Server-to-server webhook authentication
+    if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
+      isServerWebhook = true;
+    } else if (authHeader) {
+      // MODE A — User request JWT authentication
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+      if (user && !authErr) {
+        authenticatedUserId = user.id;
+      }
+    }
+
+    if (!isServerWebhook && !authenticatedUserId) {
+      const resp = { success: false, error: "Unauthorized request" };
+      return new Response(JSON.stringify(resp), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const leadId = reqBody.lead_id;
+    if (!isValidId(leadId)) {
+      const resp = { success: false, error: "Invalid or missing lead_id" };
+      return new Response(JSON.stringify(resp), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Query lead with ownership filter if User Auth Mode A
+    let query = supabase.from("leads").select("*").eq("id", leadId);
+    if (authenticatedUserId) {
+      query = query.eq("user_id", authenticatedUserId);
+    }
+    const { data: lead, error: leadErr } = await query.maybeSingle();
+
+    if (leadErr || !lead) {
+      const resp = { success: false, error: "Lead not found" };
+      return new Response(JSON.stringify(resp), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = lead.user_id;
+
+    const recordLog = async (statusCode: number, outcome: string, responsePayload: Record<string, unknown>) => {
       try {
         await supabase.from("webhook_logs").insert({
-          user_id: uid,
+          user_id: userId,
           event_type: "lead_followup",
           workflow_name: workflowName,
           trigger: trigger,
@@ -239,25 +284,6 @@ if (typeof Deno !== "undefined" && Deno.serve) {
         console.error("Failed to record webhook log:", err);
       }
     };
-
-    if (!isServerWebhook && !authenticatedUserId) {
-      const resp = { success: false, error: "Unauthorized request" };
-      await recordLog(401, "unauthorized", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const leadId = reqBody.lead_id;
-    if (!isValidId(leadId)) {
-      const resp = { success: false, error: "Invalid or missing lead_id" };
-      await recordLog(400, "bad_request", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     if (idempotencyKey) {
       const { data: existingLogs } = await supabase
@@ -281,32 +307,6 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       }
     }
 
-    const { data: lead, error: leadErr } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("id", leadId)
-      .single();
-
-    if (leadErr || !lead) {
-      const resp = { success: false, error: "Lead not found" };
-      await recordLog(404, "not_found", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // User data isolation: ensure authenticated user owns this lead
-    if (authenticatedUserId && lead.user_id !== authenticatedUserId) {
-      const resp = { success: false, error: "Forbidden: Access denied to requested lead" };
-      await recordLog(403, "forbidden", resp, authenticatedUserId);
-      return new Response(JSON.stringify(resp), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = lead.user_id;
     const action = String(reqBody.action || "24h Follow-up Sent").slice(0, 200);
     const channel = String(reqBody.channel || "whatsapp").slice(0, 50);
     const notes = String(reqBody.notes || "Automated follow-up triggered").slice(0, 1000);
@@ -327,15 +327,15 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     if (folErr) {
       if (folErr.code === "23505") {
         const resp = { success: true, duplicate: true, message: "Follow-up record already exists for this idempotency key." };
-        await recordLog(200, "duplicate", resp, userId);
+        await recordLog(200, "duplicate", resp);
         return new Response(JSON.stringify(resp), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       console.error("Database insert error into lead_followup_log:", folErr);
-      const resp = { success: false, error: "Database operation failed" };
-      await recordLog(500, "error", resp, userId);
+      const resp = { success: false, error: "Internal server error" };
+      await recordLog(500, "error", resp);
       return new Response(JSON.stringify(resp), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -346,7 +346,8 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       await supabase
         .from("leads")
         .update({ status: reqBody.new_status.slice(0, 50) })
-        .eq("id", lead.id);
+        .eq("id", lead.id)
+        .eq("user_id", userId);
     }
 
     await supabase.from("notifications").insert({
@@ -362,7 +363,7 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       message: "Lead follow-up logged successfully",
       followup_id: followupLog.id,
     };
-    await recordLog(200, "success", successResp, userId);
+    await recordLog(200, "success", successResp);
 
     return new Response(JSON.stringify(successResp), {
       status: 200,

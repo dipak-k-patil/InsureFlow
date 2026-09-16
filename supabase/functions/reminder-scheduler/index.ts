@@ -35,6 +35,13 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("authorization");
   const headerCronSecret = req.headers.get("x-cron-secret");
 
+  if (!cronSecret && !serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Scheduler authentication is not configured" }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let isAuthenticated = false;
 
   if (cronSecret && (headerCronSecret === cronSecret || authHeader === `Bearer ${cronSecret}`)) {

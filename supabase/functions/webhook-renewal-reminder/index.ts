@@ -47,25 +47,32 @@ export function handleRenewalReminderRequest(
   let authenticatedUserId: string | null = null;
   let isServerWebhook = false;
 
-  // 1. Server-to-server webhook authentication
-  if (expectedSecret && webhookSecret === expectedSecret) {
+  // Check server secret presence if secret auth header provided
+  if (webhookSecret || (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes("."))) {
+    if (!expectedSecret) {
+      const resp = { success: false, error: "Webhook authentication is not configured" };
+      return { status: 503, body: resp, headers: corsHeaders };
+    }
+  }
+
+  // MODE B — Server-to-server authentication
+  if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
     isServerWebhook = true;
   } else if (authHeader) {
+    // MODE A — User JWT authentication simulation for test runner
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (expectedSecret && token === expectedSecret) {
-      isServerWebhook = true;
-    } else if (token.length > 10 && token !== "service_role_key") {
+    if (token.length > 10 && token !== "service_role_key") {
       authenticatedUserId = "auth_user_id";
     }
   }
 
-  // 2. Reject unauthenticated requests
+  // Reject unauthenticated requests
   if (!isServerWebhook && !authenticatedUserId) {
     const resp = { success: false, error: "Unauthorized request" };
     return { status: 401, body: resp, headers: corsHeaders };
   }
 
-  // 3. Strict Input Validation
+  // Strict Input Validation
   const policyId = reqBody.policy_id;
   if (!isValidId(policyId)) {
     const resp = { success: false, error: "Invalid or missing policy_id" };
@@ -81,11 +88,24 @@ export function handleRenewalReminderRequest(
   const logs = mockDb?.webhook_logs || [];
   const reminderLogs = mockDb?.reminder_log || [];
 
-  const recordLog = (statusCode: number, outcome: string, responsePayload: Record<string, unknown>, userIdForLog?: string | null) => {
-    const uid = userIdForLog || authenticatedUserId || "00000000-0000-0000-0000-000000000000";
+  const policy = (mockDb?.policies || []).find((p) => p.id === policyId);
+  if (!policy) {
+    const resp = { success: false, error: "Policy not found" };
+    return { status: 404, body: resp, headers: corsHeaders };
+  }
+
+  // Ownership verification for user requests
+  if (authenticatedUserId && authenticatedUserId !== "auth_user_id" && policy.user_id !== authenticatedUserId) {
+    const resp = { success: false, error: "Forbidden: Access denied to requested policy" };
+    return { status: 403, body: resp, headers: corsHeaders };
+  }
+
+  const effectiveUserId = policy.user_id;
+
+  const recordLog = (statusCode: number, outcome: string, responsePayload: Record<string, unknown>) => {
     const logEntry = {
       id: `log-${Date.now()}-${Math.random()}`,
-      user_id: uid,
+      user_id: effectiveUserId,
       event_type: "renewal_reminder",
       workflow_name: workflowName,
       trigger: trigger,
@@ -101,7 +121,7 @@ export function handleRenewalReminderRequest(
     return logEntry;
   };
 
-  // 4. Idempotency Check
+  // Idempotency Check
   if (idempotencyKey) {
     const existing = logs.find(
       (l) => l.idempotency_key === idempotencyKey && l.outcome === "success"
@@ -112,26 +132,10 @@ export function handleRenewalReminderRequest(
         duplicate: true,
         message: "Duplicate request detected and ignored. Previously processed.",
       };
-      recordLog(200, "duplicate", resp, existing.user_id);
+      recordLog(200, "duplicate", resp);
       return { status: 200, body: resp, headers: corsHeaders };
     }
   }
-
-  // 5. Database record verification and ownership check
-  const policy = (mockDb?.policies || []).find((p) => p.id === policyId);
-  if (!policy) {
-    const resp = { success: false, error: "Policy not found" };
-    recordLog(404, "not_found", resp);
-    return { status: 404, body: resp, headers: corsHeaders };
-  }
-
-  if (authenticatedUserId && policy.user_id !== authenticatedUserId && authenticatedUserId !== "auth_user_id") {
-    const resp = { success: false, error: "Forbidden: Access denied to requested policy" };
-    recordLog(403, "forbidden", resp, authenticatedUserId);
-    return { status: 403, body: resp, headers: corsHeaders };
-  }
-
-  const effectiveUserId = policy.user_id;
 
   const reminderEntry = {
     id: `rem-${Date.now()}`,
@@ -151,7 +155,7 @@ export function handleRenewalReminderRequest(
     message: "Renewal reminder recorded successfully",
     reminder_id: reminderEntry.id,
   };
-  recordLog(200, "success", successResp, effectiveUserId);
+  recordLog(200, "success", successResp);
 
   return { status: 200, body: successResp, headers: corsHeaders };
 }
@@ -200,26 +204,78 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     let authenticatedUserId: string | null = null;
     let isServerWebhook = false;
 
-    // 1. Authenticate server-to-server webhook OR logged-in user JWT
-    if (expectedSecret && webhookSecret === expectedSecret) {
-      isServerWebhook = true;
-    } else if (authHeader) {
-      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      if (expectedSecret && token === expectedSecret) {
-        isServerWebhook = true;
-      } else {
-        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-        if (user && !authErr) {
-          authenticatedUserId = user.id;
-        }
+    // Check server secret presence if secret auth header provided
+    if (webhookSecret || (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes("."))) {
+      if (!expectedSecret) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Webhook authentication is not configured" }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
     }
 
-    const recordLog = async (statusCode: number, outcome: string, responsePayload: Record<string, unknown>, userIdForLog?: string | null) => {
-      const uid = userIdForLog || authenticatedUserId || "00000000-0000-0000-0000-000000000000";
+    // MODE B — Server-to-server webhook authentication
+    if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
+      isServerWebhook = true;
+    } else if (authHeader) {
+      // MODE A — User request JWT authentication
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+      if (user && !authErr) {
+        authenticatedUserId = user.id;
+      }
+    }
+
+    if (!isServerWebhook && !authenticatedUserId) {
+      const resp = { success: false, error: "Unauthorized request" };
+      return new Response(JSON.stringify(resp), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const policyId = reqBody.policy_id;
+    if (!isValidId(policyId)) {
+      const resp = { success: false, error: "Invalid or missing policy_id" };
+      return new Response(JSON.stringify(resp), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const milestone = String(reqBody.milestone || "d30").toLowerCase();
+    if (!VALID_MILESTONES.has(milestone)) {
+      const resp = { success: false, error: "Invalid milestone value" };
+      return new Response(JSON.stringify(resp), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Query policy with ownership filter if User Auth Mode A
+    let query = supabase.from("policies").select("*").eq("id", policyId);
+    if (authenticatedUserId) {
+      query = query.eq("user_id", authenticatedUserId);
+    }
+    const { data: policy, error: policyErr } = await query.maybeSingle();
+
+    if (policyErr || !policy) {
+      const resp = { success: false, error: "Policy not found" };
+      return new Response(JSON.stringify(resp), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = policy.user_id;
+
+    const recordLog = async (statusCode: number, outcome: string, responsePayload: Record<string, unknown>) => {
       try {
         await supabase.from("webhook_logs").insert({
-          user_id: uid,
+          user_id: userId,
           event_type: "renewal_reminder",
           workflow_name: workflowName,
           trigger: trigger,
@@ -234,35 +290,6 @@ if (typeof Deno !== "undefined" && Deno.serve) {
         console.error("Failed to record webhook log:", err);
       }
     };
-
-    if (!isServerWebhook && !authenticatedUserId) {
-      const resp = { success: false, error: "Unauthorized request" };
-      await recordLog(401, "unauthorized", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const policyId = reqBody.policy_id;
-    if (!isValidId(policyId)) {
-      const resp = { success: false, error: "Invalid or missing policy_id" };
-      await recordLog(400, "bad_request", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const milestone = String(reqBody.milestone || "d30").toLowerCase();
-    if (!VALID_MILESTONES.has(milestone)) {
-      const resp = { success: false, error: "Invalid milestone value" };
-      await recordLog(400, "bad_request", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     if (idempotencyKey) {
       const { data: existingLogs } = await supabase
@@ -286,32 +313,6 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       }
     }
 
-    const { data: policy, error: policyErr } = await supabase
-      .from("policies")
-      .select("*")
-      .eq("id", policyId)
-      .single();
-
-    if (policyErr || !policy) {
-      const resp = { success: false, error: "Policy not found" };
-      await recordLog(404, "not_found", resp);
-      return new Response(JSON.stringify(resp), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // User data isolation: ensure authenticated user owns this policy
-    if (authenticatedUserId && policy.user_id !== authenticatedUserId) {
-      const resp = { success: false, error: "Forbidden: Access denied to requested policy" };
-      await recordLog(403, "forbidden", resp, authenticatedUserId);
-      return new Response(JSON.stringify(resp), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = policy.user_id;
     const today = new Date().toISOString().slice(0, 10);
     const end = new Date(policy.end_date + "T00:00:00Z").getTime();
     const now = new Date();
@@ -348,15 +349,15 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     if (remErr) {
       if (remErr.code === "23505") {
         const resp = { success: true, duplicate: true, message: "Reminder already sent for this milestone." };
-        await recordLog(200, "duplicate", resp, userId);
+        await recordLog(200, "duplicate", resp);
         return new Response(JSON.stringify(resp), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       console.error("Database insert error into reminder_log:", remErr);
-      const resp = { success: false, error: "Database operation failed" };
-      await recordLog(500, "error", resp, userId);
+      const resp = { success: false, error: "Internal server error" };
+      await recordLog(500, "error", resp);
       return new Response(JSON.stringify(resp), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -376,7 +377,7 @@ if (typeof Deno !== "undefined" && Deno.serve) {
       message: "Renewal reminder recorded successfully",
       reminder_id: reminder.id,
     };
-    await recordLog(200, "success", successResp, userId);
+    await recordLog(200, "success", successResp);
 
     return new Response(JSON.stringify(successResp), {
       status: 200,
