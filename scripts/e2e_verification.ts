@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://wvoyfmkxwpjtjtsnodgf.supabase.co";
 const PUBLISHABLE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_NhuDPaLMh5tjGfWW6fujBw_Aq9JIHF3";
+const TEST_WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "test_secure_webhook_secret_2026";
 
 const supabase = createClient(SUPABASE_URL, PUBLISHABLE_KEY);
 
@@ -84,7 +85,7 @@ async function runE2E() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": renewalIdempotencyKey,
       },
       body: JSON.stringify(renewalPayload),
@@ -106,11 +107,11 @@ async function runE2E() {
     const res = handleRenewalReminderRequest(
       renewalPayload,
       {
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": renewalIdempotencyKey,
         authorization: `Bearer ${authToken}`,
       },
-      { WEBHOOK_SECRET: "default_webhook_secret" },
+      { WEBHOOK_SECRET: TEST_WEBHOOK_SECRET },
       mockDb
     );
     renewalResp1 = { status: res.status };
@@ -159,7 +160,7 @@ async function runE2E() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": leadIdempotencyKey,
       },
       body: JSON.stringify(leadPayload),
@@ -181,11 +182,11 @@ async function runE2E() {
     const res = handleLeadFollowupRequest(
       leadPayload,
       {
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": leadIdempotencyKey,
         authorization: `Bearer ${authToken}`,
       },
-      { WEBHOOK_SECRET: "default_webhook_secret" },
+      { WEBHOOK_SECRET: TEST_WEBHOOK_SECRET },
       mockDb
     );
     leadResp1 = { status: res.status };
@@ -223,7 +224,7 @@ async function runE2E() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": renewalIdempotencyKey,
       },
       body: JSON.stringify({ ...renewalPayload, retry_count: 1 }),
@@ -239,18 +240,18 @@ async function runE2E() {
     const mockDb = {
       policies: [testPolicy],
       webhook_logs: [
-        { idempotency_key: renewalIdempotencyKey, outcome: "success" }
+        { idempotency_key: renewalIdempotencyKey, outcome: "success", user_id: userId }
       ],
       reminder_log: [],
     };
     const res = handleRenewalReminderRequest(
       { ...renewalPayload, retry_count: 1 },
       {
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": renewalIdempotencyKey,
         authorization: `Bearer ${authToken}`,
       },
-      { WEBHOOK_SECRET: "default_webhook_secret" },
+      { WEBHOOK_SECRET: TEST_WEBHOOK_SECRET },
       mockDb
     );
     renewalResp2 = { status: res.status };
@@ -285,7 +286,7 @@ async function runE2E() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": leadIdempotencyKey,
       },
       body: JSON.stringify({ ...leadPayload, retry_count: 1 }),
@@ -301,18 +302,18 @@ async function runE2E() {
     const mockDb = {
       leads: [testLead],
       webhook_logs: [
-        { idempotency_key: leadIdempotencyKey, outcome: "success" }
+        { idempotency_key: leadIdempotencyKey, outcome: "success", user_id: userId }
       ],
       lead_followup_log: [],
     };
     const res = handleLeadFollowupRequest(
       { ...leadPayload, retry_count: 1 },
       {
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         "x-idempotency-key": leadIdempotencyKey,
         authorization: `Bearer ${authToken}`,
       },
-      { WEBHOOK_SECRET: "default_webhook_secret" },
+      { WEBHOOK_SECRET: TEST_WEBHOOK_SECRET },
       mockDb
     );
     leadResp2 = { status: res.status };
@@ -349,7 +350,7 @@ async function runE2E() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
       },
       body: JSON.stringify({ user_id: userId }),
     });
@@ -364,10 +365,10 @@ async function runE2E() {
     const res = handleRenewalReminderRequest(
       { user_id: userId },
       {
-        "x-webhook-secret": "default_webhook_secret",
+        "x-webhook-secret": TEST_WEBHOOK_SECRET,
         authorization: `Bearer ${authToken}`,
       },
-      { WEBHOOK_SECRET: "default_webhook_secret" },
+      { WEBHOOK_SECRET: TEST_WEBHOOK_SECRET },
       { policies: [], webhook_logs: [] }
     );
     invalidResp = { status: res.status };

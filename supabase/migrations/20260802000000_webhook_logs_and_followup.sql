@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS public.webhook_logs (
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_user ON public.webhook_logs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_idem ON public.webhook_logs(idempotency_key);
 
+REVOKE ALL ON public.webhook_logs FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.webhook_logs TO authenticated;
 GRANT ALL ON public.webhook_logs TO service_role;
-GRANT ALL ON public.webhook_logs TO anon;
 ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own webhook logs" ON public.webhook_logs FOR ALL TO authenticated
@@ -38,9 +38,9 @@ CREATE TABLE IF NOT EXISTS public.lead_followup_log (
 CREATE INDEX IF NOT EXISTS idx_lead_followup_user ON public.lead_followup_log(user_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_lead_followup_lead ON public.lead_followup_log(lead_id);
 
+REVOKE ALL ON public.lead_followup_log FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.lead_followup_log TO authenticated;
 GRANT ALL ON public.lead_followup_log TO service_role;
-GRANT ALL ON public.lead_followup_log TO anon;
 ALTER TABLE public.lead_followup_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own lead followups" ON public.lead_followup_log FOR ALL TO authenticated
