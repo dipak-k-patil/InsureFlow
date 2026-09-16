@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const getCorsHeaders = (origin?: string | null) => ({
+  "Access-Control-Allow-Origin": origin || "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+});
 
 type Milestone = "d60" | "d30" | "d15" | "d7" | "d5" | "daily";
 
@@ -21,12 +22,50 @@ function daysUntil(dateISO: string) {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  // Cron authentication check
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+
+  const authHeader = req.headers.get("authorization");
+  const headerCronSecret = req.headers.get("x-cron-secret");
+
+  if (!cronSecret && !serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Scheduler authentication is not configured" }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  let isAuthenticated = false;
+
+  if (cronSecret && (headerCronSecret === cronSecret || authHeader === `Bearer ${cronSecret}`)) {
+    isAuthenticated = true;
+  } else if (serviceRoleKey && (authHeader === `Bearer ${serviceRoleKey}` || req.headers.get("apikey") === serviceRoleKey)) {
+    isAuthenticated = true;
+  }
+
+  if (!isAuthenticated) {
+    return new Response(JSON.stringify({ error: "Unauthorized request" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("Missing Supabase configuration");
+    return new Response(JSON.stringify({ error: "Server configuration error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
     const { data: policies, error } = await supabase
@@ -61,7 +100,7 @@ Deno.serve(async (req) => {
       else if (daysLeft < 5) milestone = "daily";
       if (!milestone || milestones[milestone] === false) continue;
 
-      // Idempotency: milestone once ever; daily once per day
+      // Idempotency check
       const q = supabase
         .from("reminder_log")
         .select("id")
@@ -106,7 +145,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("reminder-scheduler error", e);
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
