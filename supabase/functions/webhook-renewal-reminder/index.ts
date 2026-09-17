@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const getCorsHeaders = (origin?: string | null) => ({
   "Access-Control-Allow-Origin": origin || "*",
@@ -23,25 +23,28 @@ function isValidId(id: unknown): id is string {
   return typeof id === "string" && id.length > 0 && id.length <= 128 && UUID_OR_TEST_ID_REGEX.test(id);
 }
 
-export function handleRenewalReminderRequest(
+export async function handleRenewalReminderRequest(
   reqBody: RenewalPayload,
   headers: Record<string, string | null>,
   env: Record<string, string | undefined>,
   mockDb?: {
-    policies?: any[];
-    webhook_logs?: any[];
-    reminder_log?: any[];
-    notifications?: any[];
+    policies?: Record<string, unknown>[];
+    webhook_logs?: Record<string, unknown>[];
+    reminder_log?: Record<string, unknown>[];
+    notifications?: Record<string, unknown>[];
+  },
+  options?: {
+    supabaseClient?: SupabaseClient | { auth: { getUser: (token: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }> } };
   }
 ) {
-  const corsHeaders = getCorsHeaders(headers["origin"]);
-  const idempotencyKey = headers["x-idempotency-key"] || reqBody.idempotency_key || null;
+  const corsHeaders = getCorsHeaders(headers["origin"] || headers["Origin"]);
+  const idempotencyKey = headers["x-idempotency-key"] || headers["X-Idempotency-Key"] || reqBody.idempotency_key || null;
   const retryCount = Number(reqBody.retry_count ?? 0);
   const workflowName = String(reqBody.workflow_name || "Renewal Reminder Automation").slice(0, 100);
   const trigger = String(reqBody.trigger || "Scheduled Expiry Reminder").slice(0, 100);
 
-  const authHeader = headers["authorization"];
-  const webhookSecret = headers["x-webhook-secret"];
+  const authHeader = headers["authorization"] || headers["Authorization"];
+  const webhookSecret = headers["x-webhook-secret"] || headers["X-Webhook-Secret"];
   const expectedSecret = env.WEBHOOK_SECRET;
 
   let authenticatedUserId: string | null = null;
@@ -58,11 +61,17 @@ export function handleRenewalReminderRequest(
   // MODE B — Server-to-server authentication
   if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
     isServerWebhook = true;
-  } else if (authHeader) {
-    // MODE A — User JWT authentication simulation for test runner
+  } else if (authHeader && authHeader.startsWith("Bearer ")) {
+    // MODE A — Real Supabase JWT verification
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (token.length > 10 && token !== "service_role_key") {
-      authenticatedUserId = "auth_user_id";
+    if (token) {
+      const supabase = options?.supabaseClient || (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY ? createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) : null);
+      if (supabase) {
+        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+        if (!authErr && user) {
+          authenticatedUserId = user.id;
+        }
+      }
     }
   }
 
@@ -95,12 +104,12 @@ export function handleRenewalReminderRequest(
   }
 
   // Ownership verification for user requests
-  if (authenticatedUserId && authenticatedUserId !== "auth_user_id" && policy.user_id !== authenticatedUserId) {
+  if (authenticatedUserId && policy.user_id !== authenticatedUserId) {
     const resp = { success: false, error: "Forbidden: Access denied to requested policy" };
     return { status: 403, body: resp, headers: corsHeaders };
   }
 
-  const effectiveUserId = policy.user_id;
+  const effectiveUserId = String(policy.user_id);
 
   const recordLog = (statusCode: number, outcome: string, responsePayload: Record<string, unknown>) => {
     const logEntry = {
@@ -184,7 +193,7 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     try {
       const rawText = await req.text();
       if (rawText) reqBody = JSON.parse(rawText);
-    } catch (e) {
+    } catch {
       return new Response(JSON.stringify({ success: false, error: "Invalid JSON body" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -220,7 +229,7 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     // MODE B — Server-to-server webhook authentication
     if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
       isServerWebhook = true;
-    } else if (authHeader) {
+    } else if (authHeader && authHeader.startsWith("Bearer ")) {
       // MODE A — User request JWT authentication
       const token = authHeader.replace(/^Bearer\s+/i, "").trim();
       const { data: { user }, error: authErr } = await supabase.auth.getUser(token);

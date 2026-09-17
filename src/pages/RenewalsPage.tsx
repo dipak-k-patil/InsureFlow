@@ -42,7 +42,7 @@ export default function RenewalsPage() {
 
   const rows = useMemo(() => {
     return policies
-      .filter((p) => p.status === "Active")
+      .filter((p) => p.status?.toLowerCase() === "active")
       .map((p) => {
         const daysLeft = daysUntil(p.end_date);
         const zone = getZone(daysLeft);

@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const totalLeads = leads?.length || 0;
-    const activePolicies = (policies || []).filter((p) => p && p.status === "Active").length;
+    const activePolicies = (policies || []).filter((p) => p && p.status?.toLowerCase() === "active").length;
 
     const totalCommission = (policies || []).reduce((sum, p) => {
       if (!p) return sum;
@@ -81,7 +81,7 @@ export default function DashboardPage() {
 
   const upcomingRenewals = useMemo(() => {
     return (policies || [])
-      .filter((p) => p && p.status === "Active" && p.end_date)
+      .filter((p) => p && p.status?.toLowerCase() === "active" && p.end_date)
       .map((p) => {
         const daysLeft = daysUntil(p.end_date);
         return { ...p, daysLeft };

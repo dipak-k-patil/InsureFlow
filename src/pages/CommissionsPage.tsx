@@ -28,7 +28,7 @@ export default function CommissionsPage() {
       cur.commission += commission;
       cur.rate = rate;
       const d = daysUntil(p.end_date);
-      if (p.status === "Active" && d >= 0 && d <= 60) cur.upcoming += commission;
+      if (p.status?.toLowerCase() === "active" && d >= 0 && d <= 60) cur.upcoming += commission;
       map.set(p.provider, cur);
     });
     return [...map.values()].sort((a, b) => b.commission - a.commission);
