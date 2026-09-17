@@ -57,6 +57,30 @@ describe("Security Regression & Webhook Hardening Tests", () => {
     expect(res.body.error).toBe("Unauthorized request");
   });
 
+  it("2b. Reject WEBHOOK_SECRET in Authorization Bearer header (x-webhook-secret required for server auth)", async () => {
+    const res = await handleLeadFollowupRequest(
+      { lead_id: "33333333-3333-3333-3333-333333333333" },
+      { authorization: `Bearer ${validEnv.WEBHOOK_SECRET}` },
+      validEnv,
+      getMockDb(),
+      { supabaseClient: createMockSupabase({}) }
+    );
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("Unauthorized request");
+  });
+
+  it("2c. Webhook response returns restricted APP_ORIGIN CORS header instead of wildcard *", async () => {
+    const customAppOriginEnv = { ...validEnv, APP_ORIGIN: "https://custom.insureflow.com" };
+    const res = await handleLeadFollowupRequest(
+      { lead_id: "33333333-3333-3333-3333-333333333333" },
+      { "x-webhook-secret": validEnv.WEBHOOK_SECRET, origin: "https://custom.insureflow.com" },
+      customAppOriginEnv,
+      getMockDb()
+    );
+    expect(res.headers["Access-Control-Allow-Origin"]).toBe("https://custom.insureflow.com");
+    expect(res.headers["Access-Control-Allow-Origin"]).not.toBe("*");
+  });
+
   it("3. Return HTTP 503 when server WEBHOOK_SECRET is unconfigured", async () => {
     const res = await handleLeadFollowupRequest(
       { lead_id: "33333333-3333-3333-3333-333333333333" },

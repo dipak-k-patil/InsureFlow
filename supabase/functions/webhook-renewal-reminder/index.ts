@@ -1,10 +1,14 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const getCorsHeaders = (origin?: string | null) => ({
-  "Access-Control-Allow-Origin": origin || "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-idempotency-key",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-});
+const getCorsHeaders = (origin?: string | null, appOrigin?: string) => {
+  const configuredOrigin = appOrigin || "https://insureflow.kadmak.in";
+  const allowedOrigin = origin && origin === configuredOrigin ? origin : configuredOrigin;
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-idempotency-key",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+};
 
 interface RenewalPayload {
   user_id?: string;
@@ -37,7 +41,7 @@ export async function handleRenewalReminderRequest(
     supabaseClient?: SupabaseClient | { auth: { getUser: (token: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }> } };
   }
 ) {
-  const corsHeaders = getCorsHeaders(headers["origin"] || headers["Origin"]);
+  const corsHeaders = getCorsHeaders(headers["origin"] || headers["Origin"], env.APP_ORIGIN);
   const idempotencyKey = headers["x-idempotency-key"] || headers["X-Idempotency-Key"] || reqBody.idempotency_key || null;
   const retryCount = Number(reqBody.retry_count ?? 0);
   const workflowName = String(reqBody.workflow_name || "Renewal Reminder Automation").slice(0, 100);
@@ -50,19 +54,19 @@ export async function handleRenewalReminderRequest(
   let authenticatedUserId: string | null = null;
   let isServerWebhook = false;
 
-  // Check server secret presence if secret auth header provided
-  if (webhookSecret || (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes("."))) {
+  // MODE B — Server-to-server webhook authentication via x-webhook-secret ONLY
+  if (webhookSecret) {
     if (!expectedSecret) {
       const resp = { success: false, error: "Webhook authentication is not configured" };
       return { status: 503, body: resp, headers: corsHeaders };
     }
+    if (webhookSecret === expectedSecret) {
+      isServerWebhook = true;
+    }
   }
 
-  // MODE B — Server-to-server authentication
-  if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
-    isServerWebhook = true;
-  } else if (authHeader && authHeader.startsWith("Bearer ")) {
-    // MODE A — Real Supabase JWT verification
+  // MODE A — Real Supabase JWT verification via Authorization: Bearer <JWT> ONLY
+  if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (token) {
       const supabase = options?.supabaseClient || (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY ? createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) : null);
@@ -171,8 +175,9 @@ export async function handleRenewalReminderRequest(
 
 if (typeof Deno !== "undefined" && Deno.serve) {
   Deno.serve(async (req) => {
+    const appOrigin = Deno.env.get("APP_ORIGIN");
     const origin = req.headers.get("origin");
-    const corsHeaders = getCorsHeaders(origin);
+    const corsHeaders = getCorsHeaders(origin, appOrigin);
 
     if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -213,8 +218,8 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     let authenticatedUserId: string | null = null;
     let isServerWebhook = false;
 
-    // Check server secret presence if secret auth header provided
-    if (webhookSecret || (authHeader && authHeader.startsWith("Bearer ") && !authHeader.includes("."))) {
+    // MODE B — Server-to-server webhook authentication via x-webhook-secret ONLY
+    if (webhookSecret) {
       if (!expectedSecret) {
         return new Response(
           JSON.stringify({ success: false, error: "Webhook authentication is not configured" }),
@@ -224,17 +229,19 @@ if (typeof Deno !== "undefined" && Deno.serve) {
           }
         );
       }
+      if (webhookSecret === expectedSecret) {
+        isServerWebhook = true;
+      }
     }
 
-    // MODE B — Server-to-server webhook authentication
-    if (expectedSecret && (webhookSecret === expectedSecret || (authHeader && authHeader.replace(/^Bearer\s+/i, "").trim() === expectedSecret))) {
-      isServerWebhook = true;
-    } else if (authHeader && authHeader.startsWith("Bearer ")) {
-      // MODE A — User request JWT authentication
+    // MODE A — User request JWT authentication via Authorization: Bearer <JWT> ONLY
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-      if (user && !authErr) {
-        authenticatedUserId = user.id;
+      if (token) {
+        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+        if (user && !authErr) {
+          authenticatedUserId = user.id;
+        }
       }
     }
 
