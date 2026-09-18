@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const getCorsHeaders = (origin?: string | null, appOrigin?: string) => {
   const configuredOrigin = appOrigin || "https://insureflow.kadmak.in";
