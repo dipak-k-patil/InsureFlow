@@ -9,6 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, getSignedAvatarUrl } from "@/hooks/useProfile";
 import { useQueryClient } from "@tanstack/react-query";
+import { BrandKitManager } from "@/components/BrandKitManager";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Palette } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -77,15 +80,30 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
+        <h1 className="text-2xl font-bold text-foreground">Settings & Brand Assets</h1>
+        <p className="text-muted-foreground mt-1">Manage your account, security, and reusable agency Brand Kits</p>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-6 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10"><User className="w-5 h-5 text-primary" /></div>
-          <h2 className="text-lg font-semibold text-foreground">Profile</h2>
-        </div>
+      <Tabs defaultValue="brand-kits" className="w-full">
+        <TabsList className="grid grid-cols-2 max-w-md mb-6">
+          <TabsTrigger value="brand-kits" className="gap-2">
+            <Palette className="w-4 h-4" /> Brand Kits
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-2">
+            <User className="w-4 h-4" /> Account & Security
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="brand-kits" className="mt-0">
+          <BrandKitManager />
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-0 space-y-6">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10"><User className="w-5 h-5 text-primary" /></div>
+              <h2 className="text-lg font-semibold text-foreground">Profile</h2>
+            </div>
 
         <div className="flex items-center gap-4 flex-wrap">
           <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-lg font-semibold text-primary overflow-hidden">
@@ -135,6 +153,8 @@ export default function SettingsPage() {
         </div>
         <Button variant="outline" onClick={changePassword}>Change Password</Button>
       </motion.div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
