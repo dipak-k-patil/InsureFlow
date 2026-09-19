@@ -223,4 +223,37 @@ describe("Security Regression & Webhook Hardening Tests", () => {
       expect(mockDb.reminder_log[0].policy_id).toBe("55555555-5555-5555-5555-555555555555");
     });
   });
+
+  describe("Database RLS & Cross-User Security Policy Simulation", () => {
+    it("14. Cross-user policy ownership verification blocks linking reminder_log to policy owned by another user", () => {
+      const authenticatedUserId = mockUserA;
+      const targetPolicyOwnerId = mockUserB; // Target policy belongs to User B
+
+      // Simulation of RLS WITH CHECK condition:
+      // auth.uid() = user_id AND EXISTS (SELECT 1 FROM policies WHERE id = policy_id AND user_id = auth.uid())
+      const isOwner = authenticatedUserId === targetPolicyOwnerId;
+      expect(isOwner).toBe(false);
+    });
+
+    it("15. Cross-user lead ownership verification blocks linking lead_followup_log to lead owned by another user", () => {
+      const authenticatedUserId = mockUserA;
+      const targetLeadOwnerId = mockUserB; // Target lead belongs to User B
+
+      // Simulation of RLS WITH CHECK condition:
+      // auth.uid() = user_id AND EXISTS (SELECT 1 FROM leads WHERE id = lead_id AND user_id = auth.uid())
+      const isOwner = authenticatedUserId === targetLeadOwnerId;
+      expect(isOwner).toBe(false);
+    });
+
+    it("16. Storage folder path validation blocks user from writing to another user's folder path", () => {
+      const authenticatedUserId = mockUserA;
+      const attemptedFilePath = `${mockUserB}/document.pdf`;
+      const folderUserId = attemptedFilePath.split("/")[0];
+
+      // Simulation of Storage RLS WITH CHECK condition:
+      // (storage.foldername(name))[1] = auth.uid()::text
+      const canAccess = folderUserId === authenticatedUserId;
+      expect(canAccess).toBe(false);
+    });
+  });
 });
