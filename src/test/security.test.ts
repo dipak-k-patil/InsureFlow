@@ -224,6 +224,40 @@ describe("Security Regression & Webhook Hardening Tests", () => {
     });
   });
 
+  describe("Repository Secret Exposure Scanner Test", () => {
+    it("18. Ensure no hardcoded secret keys or service role tokens exist in src/ directory", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+
+      const walkDir = (dir: string, fileList: string[] = []) => {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          const filePath = path.join(dir, file);
+          if (fs.statSync(filePath).isDirectory()) {
+            walkDir(filePath, fileList);
+          } else if (/\.(ts|tsx|js|json)$/.test(file)) {
+            fileList.push(filePath);
+          }
+        }
+        return fileList;
+      };
+
+      const srcFiles = walkDir(path.resolve(__dirname, "../../src"));
+      const secretPatterns = [
+        /sb_secret_[a-zA-Z0-9_\-]{20,}/,
+        /eyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{30,}/,
+        /-----BEGIN (RSA )?PRIVATE KEY-----/,
+      ];
+
+      for (const filePath of srcFiles) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        for (const pattern of secretPatterns) {
+          expect(pattern.test(content)).toBe(false);
+        }
+      }
+    });
+  });
+
   describe("Deployment & Configuration Security Tests", () => {
     it("17. vercel.json contains required security headers and SPA rewrites", async () => {
       const fs = await import("fs");
