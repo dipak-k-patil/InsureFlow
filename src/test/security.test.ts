@@ -224,6 +224,29 @@ describe("Security Regression & Webhook Hardening Tests", () => {
     });
   });
 
+  describe("Deployment & Configuration Security Tests", () => {
+    it("17. vercel.json contains required security headers and SPA rewrites", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const vercelConfigPath = path.resolve(__dirname, "../../vercel.json");
+      expect(fs.existsSync(vercelConfigPath)).toBe(true);
+
+      const vercelConfig = JSON.parse(fs.readFileSync(vercelConfigPath, "utf-8"));
+      expect(vercelConfig.rewrites).toBeDefined();
+      expect(vercelConfig.headers).toBeDefined();
+
+      const globalHeaders = vercelConfig.headers.find((h: any) => h.source === "/(.*)")?.headers || [];
+      const headerKeys = globalHeaders.map((h: any) => h.key);
+
+      expect(headerKeys).toContain("X-Content-Type-Options");
+      expect(headerKeys).toContain("X-Frame-Options");
+      expect(headerKeys).toContain("Referrer-Policy");
+      expect(headerKeys).toContain("Permissions-Policy");
+      expect(headerKeys).toContain("Strict-Transport-Security");
+      expect(headerKeys).toContain("Content-Security-Policy");
+    });
+  });
+
   describe("Database RLS & Cross-User Security Policy Simulation", () => {
     it("14. Cross-user policy ownership verification blocks linking reminder_log to policy owned by another user", () => {
       const authenticatedUserId = mockUserA;
